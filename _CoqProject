@@ -1,0 +1,6 @@
+-Q . atomic_block
+-arg -w -arg -notation-overridden,-redundant-canonical-projection,-several-object-files
+
+program_logic/atomic_ectx_language.v
+program_logic/atomic_ectx_lifting.v
+program_logic/atomic_ectxi_language.v
