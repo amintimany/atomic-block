@@ -155,38 +155,6 @@ Qed.
 
 Hint Resolve atomically_reducible_reducible.
 
-(* Lemma wp_lift_atomic_block_fupd {s E Φ} e1 ab : *)
-(*   to_val e1 = None → *)
-(*   (∀ σ1 κ κs n, state_interp σ1 (κ ++ κs) n ={E,∅}=∗ *)
-(*     ⌜atomic_block_of e1 = Some ab ∧ atomically_reducible ab σ1⌝ ∗ *)
-(*     ∀ e2 σ2, ⌜steps_atomically ab σ1 κ e2 σ2⌝ ={∅,∅,E}▷=∗ *)
-(*       state_interp σ2 κs n ∗ WP e2 @ s; E {{ Φ }}) *)
-(*   ⊢ WP e1 @ s; E {{ Φ }}. *)
-(* Proof. *)
-(*   iIntros (?) "H". iApply wp_lift_step_fupd=>//. iIntros (σ1 κ κs Qs) "Hσ". *)
-(*   iMod ("H" with "Hσ") as "[[% %] H]"; iModIntro. *)
-(*   iSplit; first by destruct s; eauto. *)
-(*   iIntros (e2 σ2 efs Hstp). *)
-(*   eapply atomic_block_prim_step in Hstp; eauto. *)
-(*   destruct Hstp as [? ?]; simplify_eq. *)
-(*   iMod ("H" with "[]") as "H"; eauto. *)
-(*   iModIntro; iNext. *)
-(*   iMod "H" as "[$ $]"; iModIntro. *)
-(*   by rewrite big_opL_nil. *)
-(* Qed. *)
-
-(* Lemma wp_lift_atomic_block {s E Φ} e1 ab : *)
-(*   to_val e1 = None → *)
-(*   (∀ σ1 κ κs n, state_interp σ1 (κ ++ κs) n ={E,∅}=∗ *)
-(*     ⌜atomic_block_of e1 = Some ab ∧ atomically_reducible ab σ1⌝ ∗ *)
-(*     ▷ ∀ e2 σ2, ⌜steps_atomically ab σ1 κ e2 σ2⌝ ={∅,E}=∗ *)
-(*       state_interp σ2 κs (n) ∗ WP e2 @ s; E {{ Φ }}) *)
-(*   ⊢ WP e1 @ s; E {{ Φ }}. *)
-(* Proof. *)
-(*   iIntros (?) "H". iApply wp_lift_atomic_block_fupd; [done|]. iIntros (????) "?". *)
-(*   iMod ("H" with "[$]") as "[$ H]". iIntros "!>" (e2 σ2 ?) "!> !>". by iApply "H". *)
-(* Qed. *)
-
 Lemma wp_lift_atomic_block_stuck E Φ e ab:
   atomic_block_of e = Some ab →
   (∀ σ κs n, state_interp σ κs n ={E,∅}=∗ ⌜atomically_irreducible ab σ⌝)

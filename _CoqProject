@@ -4,3 +4,6 @@
 program_logic/atomic_ectx_language.v
 program_logic/atomic_ectx_lifting.v
 program_logic/atomic_ectxi_language.v
+program_logic/total_atomic_weakestpre.v
+program_logic/total_atomic_lifting.v
+program_logic/total_atomic_ectx_lifting.v

@@ -163,9 +163,8 @@ Section ectx_language.
       prim_step e1 σ1 κ e2 σ2 []
   with steps_atomically (e1 : expr Λ) (σ1 : state Λ) (κ : list (observation Λ))
             (e2 : expr Λ) (σ2 : state Λ) : Prop :=
-  | Val_steps_atomic ab v :
-      atomic_block_of e1 = Some ab →
-      to_val ab = Some v →
+  | Val_steps_atomic v :
+      to_val e1 = Some v →
       to_val e2 = Some v →
       σ1 = σ2 →
       κ = [] →
@@ -175,6 +174,10 @@ Section ectx_language.
       prim_step e1 σ1 κ1' e1' σ1' [] →
       steps_atomically e1' σ1' κ' e2 σ2 →
       steps_atomically e1 σ1 κ e2 σ2.
+
+  Lemma steps_atomically_always_to_val e1 σ1 κ e2 σ2 :
+    steps_atomically e1 σ1 κ e2 σ2 → ∃ v, to_val e2 = Some v.
+  Proof. induction 1; simplify_eq; eauto. Qed.
 
   Definition atomically_reducible (ab : expr Λ) (σ : state Λ) :=
     ∃ κ σ2 e2, steps_atomically ab σ κ e2 σ2.
