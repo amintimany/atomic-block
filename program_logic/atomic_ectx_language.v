@@ -265,6 +265,8 @@ Section ectx_language.
     by apply prim_head_irreducible.
   Qed.
 
+(* This is probably be useless! *)
+
   Lemma atomic_ectx_language_atomic a e :
     head_atomic a e → sub_redexes_are_values e →
     atomic_block_of e = None → Atomic a e.
@@ -277,6 +279,8 @@ Section ectx_language.
       { eapply Hse; eauto using atomic_block_not_val. }
       rewrite fill_empty in Hatomic_fill; simplify_eq.
   Qed.
+
+(* This is probably be useless! *)
 
   Lemma atomic_ectx_language_atomic_block_atomic a e ab :
     (∀ σ, reducible e σ) → atomic_block_of e = Some ab → Atomic a e.

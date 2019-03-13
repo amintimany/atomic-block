@@ -190,7 +190,7 @@ Arguments atomic_ectxi_lang : clear implicits.
 Coercion atomic_ectxi_lang_ectx : atomicectxiLanguage >-> atomicectxLanguage.
 Coercion atomic_ectxi_lang : atomicectxiLanguage >-> language.
 
-Definition EctxLanguageOfEctxi (Λ : atomicectxiLanguage) : atomicectxLanguage :=
+Definition AtomicEctxLanguageOfEctxi (Λ : atomicectxiLanguage) : atomicectxLanguage :=
   let '@AtomicEctxiLanguage E V C St K of_val to_val atomic_block_of fill head mix := Λ in
   @AtomicEctxLanguage E V (list C) St K of_val to_val atomic_block_of _ _ _ _
     (@atomic_ectxi_lang_ectx_mixin (@AtomicEctxiLanguage E V C St K of_val to_val atomic_block_of fill head mix)).

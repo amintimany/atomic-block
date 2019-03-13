@@ -7,3 +7,11 @@ program_logic/atomic_ectxi_language.v
 program_logic/total_atomic_weakestpre.v
 program_logic/total_atomic_lifting.v
 program_logic/total_atomic_ectx_lifting.v
+atomic_heap_lang/lang.v
+atomic_heap_lang/lifting.v
+atomic_heap_lang/metatheory.v
+atomic_heap_lang/notation.v
+atomic_heap_lang/proofmode.v
+atomic_heap_lang/proph_map.v
+atomic_heap_lang/tactics.v
+atomic_heap_lang/adequacy.v

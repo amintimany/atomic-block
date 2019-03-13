@@ -30,6 +30,36 @@ Notation "'ABWP' e [{ v ; κs , Q } ]" := (abwp e%E [] (λ v κs, Q))
   (at level 20, e, Q at level 200,
    format "'[' 'ABWP'  e  '/' '[       ' [{  v ; κs ,  Q  } ] ']' ']'") : bi_scope.
 
+(* Texan triples *)
+Notation "'[[{' P } ] ] e @ μs [[{ x .. y , 'RET' pat ; 'RET' pat' ; Q } ] ]" :=
+  (□ ∀ Φ,
+      P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V pat') .. ) -∗ ABWP e @ μs [{ Φ }])%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' [[{  P  } ] ]  '/  ' e  '/' @  μs [[{  x  ..  y ,  RET  pat ;  RET  pat' ;  Q  } ] ] ']'") : bi_scope.
+Notation "'[[{' P } ] ] e [[{ x .. y , 'RET' pat ; 'RET' pat' ; Q } ] ]" :=
+  (□ ∀ Φ,
+      P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V pat') .. ) -∗ ABWP e [{ Φ }])%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' [[{  P  } ] ]  '/  ' e  '/' [[{  x  ..  y ,  RET  pat ; RET  pat' ;  Q  } ] ] ']'") : bi_scope.
+Notation "'[[{' P } ] ] e @ μs [[{ 'RET' pat ; 'RET' pat' ; Q } ] ]" :=
+  (□ ∀ Φ, P -∗ (Q -∗ Φ pat%V pat') -∗ ABWP e @ μs [{ Φ }])%I
+    (at level 20,
+     format "'[hv' [[{  P  } ] ]  '/  ' e  '/' @  μs  [[{  RET  pat ; RET  pat' ;  Q  } ] ] ']'") : bi_scope.
+Notation "'[[{' P } ] ] e [[{ 'RET' pat ; 'RET' pat' ; Q } ] ]" :=
+  (□ ∀ Φ, P -∗ (Q -∗ Φ pat%V pat') -∗ ABWP e [{ Φ }])%I
+    (at level 20,
+     format "'[hv' [[{  P  } ] ]  '/  ' e  '/'  [[{  RET  pat ; RET  pat' ;  Q  } ] ] ']'") : bi_scope.
+
+(** Aliases for stdpp scope -- they inherit the levels and format from above. *)
+Notation "'[[{' P } ] ] e @ μs [[{ x .. y , 'RET' pat ; 'RET' pat' ; Q } ] ]" :=
+  (∀ Φ, P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V pat') .. ) -∗ ABWP e @ μs [{ Φ }]) : stdpp_scope.
+Notation "'[[{' P } ] ] e [[{ x .. y , 'RET' pat ; 'RET' pat' ; Q } ] ]" :=
+  (∀ Φ, P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V pat') .. ) -∗ ABWP e [{ Φ }]) : stdpp_scope.
+Notation "'[[{' P } ] ] e @ μs [[{ 'RET' pat ; 'RET' pat' ; Q } ] ]" :=
+  (∀ Φ, P -∗ (Q -∗ Φ pat%V pat') -∗ ABWP e @ μs [{ Φ }]) : stdpp_scope.
+Notation "'[[{' P } ] ] e [[{ 'RET' pat ; 'RET' pat' ; Q } ] ]" :=
+  (∀ Φ, P -∗ (Q -∗ Φ pat%V pat') -∗ ABWP e [{ Φ }]) : stdpp_scope.
+
 Definition abwp_pre `{irisG Λ Σ}
            (wp : expr Λ → list (observation Λ) →
                  (val Λ → list (observation Λ) → iProp Σ) → iProp Σ) :
