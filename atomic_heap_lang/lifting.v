@@ -371,12 +371,12 @@ Proof.
   rewrite -abwp_value. by iApply "HΦ".
 Qed.
 
-Lemma wp_atomic_block_fupd {s E1 E2 Ψ Φ} (ab : expr) μs :
-  (|={E1, E2}=> ▷ ABWP ab @ [] [{v ; κ, |={E2, E1}=> Ψ v κ}]) -∗
-  ▷ (∀ v κ, Ψ v κ ={E1}=∗ ⌜map fst μs = map fst κ⌝ ∗
+Lemma wp_atomic_block_fupd {s E Ψ Φ} (ab : expr) μs :
+  ▷ ABWP ab @ [] [{v ; κ, Ψ v κ}] -∗
+  ▷ (∀ v κ, Ψ v κ ={E}=∗ ⌜map fst μs = map fst κ⌝ ∗
                           ([∗ list] μ ∈ μs, proph (fst μ) (snd μ)) ∗
                           (⌜map snd μs = map (Some ∘ snd) κ⌝ -∗ Φ v)) -∗
-  WP AtomicBlock ab @ s; E1 {{ Φ }}.
+  WP AtomicBlock ab @ s; E {{ Φ }}.
 Proof.
   iIntros "HAB Hobs".
   iApply (wp_atomic_block_fupd with "HAB"); simpl in *; first done.

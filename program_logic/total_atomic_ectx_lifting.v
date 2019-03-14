@@ -1,4 +1,5 @@
 (** Some derived lemmas for ectx-based languages *)
+From iris.program_logic Require Export weakestpre.
 From atomic_block.program_logic Require Export total_atomic_weakestpre
      atomic_ectx_language total_atomic_lifting atomic_ectx_lifting.
 From iris.proofmode Require Import tactics.
@@ -65,26 +66,28 @@ Proof using Hinh.
   rewrite app_nil_r; eauto.
 Qed.
 
-Lemma wp_atomic_block_fupd {s E1 E2 Ψ Φ} e1 ab :
+Lemma wp_atomic_block_fupd {s E1 Ψ Φ} e1 ab :
   atomic_block_of e1 = Some ab →
-  (|={E1, E2}=> ▷ ABWP ab @ [] [{v ; κ, |={E2, E1}=> Φ v κ}]) -∗
+  ▷ ABWP ab @ [] [{v ; κ, Φ v κ}] -∗
   ▷ (∀ v κ κs σ n, state_interp σ (κ ++ κs) n -∗ Φ v κ ={E1}=∗ state_interp σ κs n ∗ Ψ v) -∗
   WP e1 @ s; E1 {{ Ψ }}.
 Proof.
   iIntros (Hab) "Hab Hsiupd".
-  iApply wp_lift_atomic_block_fupd; first by eauto.
+  iApply wp_lift_atomic_block_fupd.
   iIntros (σ1 κ κs n) "Hsi".
-  iMod (abwp_steps_atomically_useful with "Hsi Hab") as "(Hrd & Hsi & Hab)".
+  iAssert (▷ ∃ v κs' σ2, ⌜steps_atomically ab σ1 κs' (of_val v) σ2⌝)%I
+    with "[Hab Hsi]" as "#>Hrd" .
+  { iNext. by iMod (abwp_steps_atomically with "[$Hsi $Hab]") as "Hrd". }
   iDestruct "Hrd" as (v κs' σ2) "%".
   iModIntro. iSplit.
   { by iPureIntro; eexists _, _, _; eauto. }
   iIntros (e2 σ3 Hstp).
-  iMod "Hab". iModIntro. iNext.
+  iModIntro. iNext.
   destruct (steps_atomically_always_to_val _ _ _ _ _ Hstp) as [? ?%of_to_val];
     simplify_eq; rewrite to_of_val; simpl in *.
   iMod (abwp_steps_atomically_post _ _ _ _ _ _ _ κ with "[Hsi] [] [Hab]")
     as "[Hsi Hpost]"; eauto.
-  iMod "Hpost"; simpl.
   by iMod ("Hsiupd" with "[$] [$]") as "[$ $]".
 Qed.
+
 End wp.

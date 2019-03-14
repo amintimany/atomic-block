@@ -331,22 +331,6 @@ Section abwp_steps_atomically.
     econstructor 2; eauto.
   Qed.
 
-  Lemma abwp_steps_atomically_useful E E' Φ e σ1 μs κs n :
-    ▷ state_interp σ1 κs n -∗
-    (|={E, E'}=> ▷ ABWP e @ μs [{ v ; κs, |={E', E}=> Φ v κs}]) ={E}=∗
-    (∃ v κs' σ2, ⌜steps_atomically e σ1 κs' (of_val v) σ2⌝) ∗
-                 ▷ state_interp σ1 κs n ∗
-                 (|={E, E'}=> ▷ ABWP e @ μs [{ v ; κs, |={E', E}=> Φ v κs}]).
-  Proof.
-    iIntros "Hsi Hab".
-    iApply (fupd_plain_keep_l); iFrame.
-    iIntros "[Hsi Hab]".
-    iApply fupd_plain_mask. iMod "Hab".
-    iAssert (▷ ∃ v κs' σ2, ⌜steps_atomically e σ1 κs' (of_val v) σ2⌝)%I
-      as "#>HSA"; last done.
-    iNext. iMod (abwp_steps_atomically with "[$]"); iFrame.
-  Qed.
-
   Lemma abwp_steps_atomically_post Φ e σ1 μs κs n v κs' σ2:
     state_interp σ1 κs n -∗
     ⌜steps_atomically e σ1 κs' (of_val v) σ2⌝ -∗

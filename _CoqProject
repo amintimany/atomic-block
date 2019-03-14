@@ -25,3 +25,4 @@ atomic_heap_lang/lib/par.v
 atomic_heap_lang/lib/spawn.v
 atomic_heap_lang/lib/spin_lock.v
 atomic_heap_lang/lib/ticket_lock.v
+atomic_heap_lang/lib/cas_proph_block.v
