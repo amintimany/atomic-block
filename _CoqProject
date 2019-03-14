@@ -15,3 +15,13 @@ atomic_heap_lang/proofmode.v
 atomic_heap_lang/proph_map.v
 atomic_heap_lang/tactics.v
 atomic_heap_lang/adequacy.v
+atomic_heap_lang/lib/assert.v
+atomic_heap_lang/lib/atomic_heap.v
+atomic_heap_lang/lib/coin_flip.v
+atomic_heap_lang/lib/counter.v
+atomic_heap_lang/lib/increment.v
+atomic_heap_lang/lib/lock.v
+atomic_heap_lang/lib/par.v
+atomic_heap_lang/lib/spawn.v
+atomic_heap_lang/lib/spin_lock.v
+atomic_heap_lang/lib/ticket_lock.v
