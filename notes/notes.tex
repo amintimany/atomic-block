@@ -1,0 +1,213 @@
+\documentclass{article}
+
+\usepackage{geometry}[a4paper]
+\usepackage{includes}
+\usepackage{iris}
+\usepackage{hyperref}
+
+\title{\bfseries Atomic Blocks in \Iris{} for Prophecies}
+\author{Amin Timany\\ {imec-DistriNet, KU Leuven}}
+\date{March 15, 2019}
+
+\allowdisplaybreaks
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  I explain adding atomic blocks to \Iris{}. I then propose a weakest
+  precondition calculus for reasoning inside an atomic block. All of
+  these are done in the latest version of \Iris{} as of this writing
+  which supports prophecies. I will derive appropriate rules for
+  reasoning about programs that use atomic blocks to resolve
+  (multiple) prophecies atomically together with other physical
+  operations. The idea is that the physical portion of the program
+  inside the atomic block behaves atomically, \ie, it is logically
+  atomic.
+\end{abstract}
+
+\section{Languages in \Iris{}}
+In \Iris{} we define a programming language by defining its syntax and
+its small-step operational semantics. More precisely, we have to
+define the set of expressions, the set of values, evaluation contexts
+and a head-step relation on expressions. Let us consider as our
+running example the language \TheLang{} a concurrent
+$\lambda$-calculus with references and atomic blocks. This language is
+fairly close to \emph{heap-lang}, the default language that comes with
+the \Coq{} formalization of \Iris{}. The expressions, ranged over by
+$\expr$, values, ranged over by $\val$, and evaluation contexts,
+ranged over by $\lctx$, are as follows:
+\begin{align*}
+  \expr \bnfdef{} & n \in \mathbb{N} \ALT \expr \binop \expr \ALT \TT \ALT \True
+                    \ALT \False \ALT \If \expr then \expr \Else \expr \ALT
+                    \Rec f \var = \expr \ALT \expr~\expr \ALT \\
+                  & (\expr, \expr) \ALT \Proj{i} \expr \ALT \Inj{i} \expr \ALT
+                    \Match \expr with \var => \expr | \var => {\expr} end \ALT \loc
+                    \ALT \Ref(\expr) \ALT \deref \expr \ALT\\
+                  & \expr \gets \expr \ALT \CAS(\expr, \expr, \expr) \ALT \Fork{\expr} \ALT
+                    \ploc \ALT \createproph \ALT \resolveproph(\expr, \expr) \ALT \AtomicBlock{\expr} \\[1em]
+  \val \bnfdef{} & n \in \mathbb{N} \ALT \TT \ALT \True \ALT \False \ALT
+                   \Rec f \var = \expr \ALT (\val, \val) \ALT \Inj{i} \val \ALT \loc \ALT \ploc\\[1em]
+  \lctx \bnfdef{} & [] \ALT [] \binop \expr \ALT \val \binop [] \ALT
+                    \If [] then \expr \Else \expr \ALT []~\expr \ALT \val~[] \ALT
+                    ([], \expr) \ALT (\val, []) \ALT \Proj{i} [] \ALT\\
+                  & \Inj{i} [] \ALT \Match [] with \var => \expr | \var => {\expr} end
+                    \ALT \Ref([]) \ALT \deref [] \ALT [] \gets \expr \ALT \val \gets [] \ALT\\
+                  & \CAS([], \expr, \expr) \ALT \CAS(\val, [], \expr) \ALT \CAS(\val, \val, []) \ALT
+                    \ALT \resolveproph([], \expr) \ALT \resolveproph(\val, [])\\[1em]
+  \binop \bnfdef{} & + \ALT - \ALT = \ALT \le \\
+\end{align*}
+Here, $\Ref(\expr)$, $\deref \expr$ and $\CAS(\expr, \expr, \expr)$
+are the heap operations for allocation, reading from, writing to and
+the atomic compare and set operation respectively. The symbol $\loc$
+ranges over memory locations. The commands $\createproph$ and
+$\resolveproph(\expr, \expr)$ are used respectively to create
+prophecies and to resolve prophecies. We write $\ploc$ for prophecy
+identifiers. The $\AtomicBlock{\expr}$ is a atomic block. Intuitively
+$\AtomicBlock{\expr}$ evaluates to a value $\val$ in \emph{a single
+  step of computation} if $\expr$ evaluates to $\val$ in \emph{zero or
+  more steps}. We write $\lctx[\expr]$ to denote the expression
+resulting from putting $\expr$ in the hole of the evaluation context
+$\lctx$.
+
+in \Iris{}, the operational semantics of a language is defined as a
+thread-pool operational semantics. In the thread-pool operational
+semantics, a thread pool takes a step if one of its threads is an
+expression of the form $\lctx[\expr]$ and $\expr$ takes a
+head-step. Formally, this happens in two steps. First, based on the
+head-step we define a primitive-step (head-step extended to evaluation
+contexts). Subsequently, we define a thread-pool operation based on
+the primitive step. Therefore, to instantiate \Iris{}'s program logic
+with a programming language one needs to simply define the syntax,
+\ie, expressions, values and evaluation contexts, and define a
+head-step relation between operations. These definitions must of
+course satisfy certain axioms for them to interact properly and the
+resulting language to make sense. We will discuss these axioms later
+on. Before that, let us define the operational semantics of
+\TheLang{}. For \TheLang{} we have to extend the primitive step to
+also include evaluation of atomic blocks.
+
+For \TheLang{} we define the head step operational semantics as
+follows. Here, $\hstep$, $\step$ and $\tpstep$ are the head step,
+primitive step and thread-pool step respectively. We annotate head
+steps and primitive steps with two lists, \eg,
+$\overset{\observation \mid \vec{\expr}}{\hstep}$ and
+$\overset{\observation \mid \vec{\expr}}{\step}$. These are respectively
+the list of observations made (prophecies resolved) and threads forked
+by this step of computation. We use both $\empobs$ for the empty
+list. The thread-pool reduction relation is only annotated with
+prophecies as it already handles forked threads as shown below. We
+write $\state$ for state. The state for \TheLang{} consists of a pair
+of a heap (a map with finite support from memory locations to values)
+and a finite set of prophecy identifiers consisting of prophecy
+identifiers generated so far. We write $\state_h$ and $\state_p$for
+the heap and the set of prophecy identifiers that $\state$ consists
+of.
+
+The head-step relation is defined as follows:
+\begin{mathparpagebreakable}
+  \infer{}{(\state, \If \True then \expr_1 \Else \expr_2) \overset{\empobs \mid \empfrk}{\hstep} (\state,\expr_1)}
+  \and
+  \infer{}{(\state, \If \False then \expr_1 \Else \expr_2) \overset{\empobs \mid \empfrk}{\hstep} (\state, \expr_2)}
+  \and
+  \infer{}{(\state, (\Rec f \var = \expr)~\val) \overset{\empobs \mid \empfrk}{\hstep} (\state, \subst{\expr}{\var, f}{\val, \Rec f \var = \expr})}
+  \and
+  \infer{}{(\state, \Proj{i} (\val_1, \val_2)) \overset{\empobs \mid \empfrk}{\hstep} (\state, \val_i)}
+  \and
+  \infer{}{(\state, \Match \Inj{i} \val with \var => \expr_1 | \var => \expr_2 end) \overset{\empobs \mid \empfrk}{\hstep} (\state, \subst{\expr_i}{\var}{\val})}
+  \and
+  \infer{\loc \not\in \dom(\state_h)}{(\state, \Ref(\val)) \overset{\empobs \mid \empfrk}{\hstep} ((\state_h \uplus \set{(\loc, \val)}, \state_p), \subst{\expr_i}{\var}{\val})}
+  \and
+  \infer{(\loc, \val) \in \state_h}{(\state, \deref \loc) \overset{\empobs \mid \empfrk}{\hstep} (\state, \val)}
+  \and
+  \infer{\state_h = \set{(\loc, \val)} \uplus h}{(\state, \loc \gets \valB) \overset{\empobs \mid \empfrk}{\hstep} ((\set{(\loc, \valB)} \uplus h, \state_p), \TT)}
+  \and
+  \infer{\state_h = \set{(\loc, \val)} \uplus h}{(\state, \CAS(\loc, \val, \valB)) \overset{\empobs \mid \empfrk}{\hstep} ((\set{(\loc, \valB)} \uplus h, \state_p), \True)}
+  \and
+  \infer{(\loc, \valB) \in \state_h}{(\state, \CAS(\loc, \val, \valC)) \overset{\empobs \mid \empfrk}{\hstep} (\state, \False)}
+  \and
+  \infer{}{(\state, \Fork{\expr}) \overset{\empobs \mid \expr}{\hstep} (\state, \TT)}
+  \and
+  \infer{\ploc \not\in \state_p}{(\state, \createproph) \overset{\empobs \mid \empfrk}{\hstep} ((\state_h, \state_p \uplus \set{\ploc}), \ploc)}
+  \and
+  \infer{\ploc \in \state_p}{(\state, \resolveproph(\ploc, \val)) \overset{(\loc, \val)\mid\empfrk}{\hstep} (\state, \TT)}
+\end{mathparpagebreakable}
+
+In what follows we will define the primitive step relation for
+\TheLang{}. In this case, as opposed to ordinary languages in \Iris{}
+we have to consider atomic blocks. An atomic block reduces in single
+primitive step if the body reduces to a value in zero or more
+steps. We define this formally as a pair mutually inductive relations
+$\step$ and $\Astep$. The atomic-block relation, $\Astep$, is only
+annotated with observations as we do not allow the body of atomic
+blocks to fork threads!
+\begin{mathparpagebreakable}
+  \infer{(\state, \expr) \overset{\observation \mid \vec{\expr}}{\hstep} (\state,\expr')}{(\state, \lctx[\expr]) \overset{\observation \mid \vec{\expr}}{\step} (\state,\lctx[\expr'])}
+  \and
+  \infer{(\state, \expr) \overset{\observation}{\Astep} (\state,\val)}{(\state, \lctx[\AtomicBlock{\expr}]) \overset{\observation \mid \vec{\expr}}{\step} (\state,\lctx[\val])}
+  \and
+  \infer{}{(\state, \val) \overset{\empobs}{\Astep} (\state,\val)}
+  \and
+  \infer{(\state, \expr) \overset{\observation \mid \empfrk}{\step} (\state',\expr')
+    \and (\state', \expr') \overset{\observation'}{\Astep} (\state'',\val)}{(\state, \expr) \overset{\observation \app \observation'}{\Astep} (\state,\val)}
+\end{mathparpagebreakable}
+Notice that if an expression $\expr$ atomic-block steps to another
+expression $\expr'$, then $\expr'$, by definition of $\Astep$, must be
+a value.
+
+The thread-pool reduction relation is exactly as it is in
+\Iris{}. There, it is defined generally for any primitive step
+relation.
+\begin{mathparpagebreakable}
+  \infer{(\state, \expr) \overset{\observation \mid \vec{\expr}_f}{\step} (\state,\expr')}
+  {(\state, \vec{\expr}_1; \expr; \vec{\expr}_2) \overset{\observation}{\tpstep} (\state,\vec{\expr}_1; \expr'; \vec{\expr}_2; \vec{\expr}_f)}
+\end{mathparpagebreakable}
+
+The axioms that the expressions, values, evaluation contexts and
+head-step relation need to satisfy are as follows:\footnote{There
+  other axioms in the \Iris{} formalization which arise because in
+  \Coq{} we consider two different types for values and expressions,
+  here we simply assume that the set of values is a subset of the set
+  of expressions. Furthermore, there are axioms regarding injectivity
+  of the operation of filling an evaluation contexts with an
+  expression.  This is due to the fact that in \Coq{} formalization
+  the filling function is taken to be an arbitrary function that takes
+  an evaluation context and an expression and produces a resulting
+  expression.} Our definition above satisfies these axioms and it is
+relatively easy to check this (by simple case analyses on expressions,
+values, reduction rules, \etc).
+
+\begin{mathparpagebreakable}
+\inferH{Val-Head-Stuck}{}{\forall \state, \state', \expr, \observation, \vec{\expr}.\; (\state, \val) \not \overset{\observation \mid \vec{\expr}}{\hstep} (\state',\expr)}
+\and
+\inferH{Fill-Val}{\lctx[\expr]~\text{ is a value}}{\expr~\text{ is a value}}
+\and
+\inferH{Head-Step-Ctx-Val}{(\state, \lctx[\expr]) \overset{\observation \mid \vec{\expr}}{\hstep} (\state',\expr')}{\expr~\text{ is a value}}
+\and
+\inferH{Atomic-Block-Head-Stuck}{\expr~\text{ is an atomic block, \ie, of the form }~\AtomicBlock{\expr'}}{\forall \state, \state', \expr'', \observation, \vec{\expr}.\; (\state, \expr) \not \overset{\observation \mid \vec{\expr}}{\hstep} (\state',\expr'')}
+\and
+\inferH{Atomic-Block-Not-Val}{\expr~\text{ is an atomic block, \ie, of the form }~\AtomicBlock{\expr'}}{\expr~\text{ is \emph{not} a value}}
+\and
+\inferH{Atomic-Block-Not-Ctx}{\expr~\text{ is an atomic block, \ie, of the form }~\AtomicBlock{\expr'}}{\forall \lctx, \expr''.\; \expr \neq \lctx[\expr'']}
+\end{mathparpagebreakable}
+The axioms \ruleref{Atomic-Block-Head-Stuck},
+\ruleref{Atomic-Block-Not-Val}, \ruleref{Atomic-Block-Not-Ctx} new and
+are not part of standard \Iris{} as of this writing.\footnote{These
+  axioms are for the language construction in our development named
+  ``\texttt{atomic\_ectxi\_langage}'' which is a counterpart to the
+  ``\texttt{ectxi\_langage}'' from the \Iris{} development. The axioms
+  of ``\texttt{atomic\_ectx\_langage}'' which correspond to \Iris{}'s
+  ``\texttt{ectx\_langage}'' are slightly more involved. Note that this
+  is also the case for the axioms of ``\texttt{ectx\_langage}''
+  compared to the axioms of ``\texttt{ectxi\_langage}'' in
+  \Iris{}. This is due to the fact that the constructions with more
+  slightly more involved axioms make fewer assumptions about the
+  structure of the evaluation contexts.}
+
+\section{The Program Logic of \Iris{}: Weakest Preconditions}
+
+\section{Atomic-Block Weakest Preconditions}
+
+\section{Example: Prophecy Resolution Atomically with $\CAS$}
+
+\end{document}

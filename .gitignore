@@ -6,3 +6,7 @@ Makefile.coq
 Makefile.coq.conf
 *~
 *lia.cache
+*.log
+*.synctex.gz
+*.out
+*.pdf
