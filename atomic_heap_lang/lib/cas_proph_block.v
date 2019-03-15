@@ -1,5 +1,6 @@
 From atomic_block.atomic_heap_lang Require Import lang.
 From iris.proofmode Require Import tactics.
+From iris.program_logic Require Import atomic.
 From atomic_block.atomic_heap_lang Require Import proofmode notation.
 Set Default Proof Using "Type".
 
@@ -53,16 +54,15 @@ Section resolve_list.
       by iApply "HΦ"; iExists _, _; iFrame.
   Qed.
 
-  Lemma abwp_cas_resolve_list_suc E1 l v1 (v3 : val) κs w prs :
+  Lemma abwp_cas_resolve_list_atomic_block_suc E1 l v1 (v3 : val) κs w prs :
     vals_cas_compare_safe v1 v1 →
     map fst prs = map fst κs →
     {{{ ▷ (obs_list κs w ∗ l ↦ v1 ∗ [∗ list] μ ∈ prs, proph μ.1 μ.2) }}}
-      cas_resolve_list #l v1 v3 w @ E1
+      AtomicBlock
+      (if: CAS #l v1 v3 then resolve_list w ;; #true else #false) @ E1
     {{{ RET #true; obs_list κs w ∗ l ↦ v3 ∗ ⌜map snd prs = map (Some ∘ snd) κs⌝}}}.
   Proof.
     iIntros (Hvls Hprsκs Φ) "(Hob & Hl & Hprs) HΦ".
-    rewrite /cas_resolve_list.
-    wp_lam. repeat wp_let. (* weird behavior! *)
     iApply (wp_atomic_block_fupd
               (Ψ := λ v κs', (obs_list κs w ∗ ⌜κs = κs'⌝ ∗
                               l ↦ v3 ∗ ⌜v = #true⌝)) with "[Hl Hob]")%I.
@@ -81,14 +81,15 @@ Section resolve_list.
       by iApply "HΦ"; iFrame.
   Qed.
 
-  Lemma abwp_cas_resolve_list_fail E1 l v1 v2 (v3 w : val) :
+  Lemma abwp_cas_resolve_list_atomic_block_fail E1 l v1 v2 (v3 w : val) :
     vals_cas_compare_safe v1 v2 →
     v1 ≠ v2 →
-    {{{ ▷ l ↦ v1 }}} cas_resolve_list #l v2 v3 w @ E1 {{{ RET #false; l ↦ v1 }}}.
+    {{{ ▷ l ↦ v1 }}}
+      AtomicBlock
+      (if: CAS #l v2 v3 then resolve_list w ;; #true else #false) @ E1
+    {{{ RET #false; l ↦ v1 }}}.
   Proof.
     iIntros (Hvls Hprsκs Φ) "Hl HΦ".
-    rewrite /cas_resolve_list.
-    wp_lam. repeat wp_let. (* weird behavior! *)
     iApply (wp_atomic_block_fupd _ []
               (Ψ := λ v κs, l ↦ v1 ∗ ⌜κs = []⌝ ∗ ⌜v = #false⌝) with "[Hl]")%I.
     - iNext.
@@ -102,6 +103,52 @@ Section resolve_list.
       rewrite big_opL_nil left_id.
       iIntros "_".
       by iApply "HΦ"; iFrame.
+  Qed.
+
+  Lemma abwp_cas_resolve_list_suc E1 l v1 (v3 : val) κs w prs :
+    vals_cas_compare_safe v1 v1 →
+    map fst prs = map fst κs →
+    {{{ ▷ (obs_list κs w ∗ l ↦ v1 ∗ [∗ list] μ ∈ prs, proph μ.1 μ.2) }}}
+      cas_resolve_list #l v1 v3 w @ E1
+    {{{ RET #true; obs_list κs w ∗ l ↦ v3 ∗ ⌜map snd prs = map (Some ∘ snd) κs⌝}}}.
+  Proof.
+    iIntros (Hvls Hprsκs Φ) "HP HΦ".
+    rewrite /cas_resolve_list.
+    wp_lam. repeat wp_let.
+    iApply (abwp_cas_resolve_list_atomic_block_suc with "HP"); eauto.
+  Qed.
+
+  Lemma abwp_cas_resolve_list_fail E1 l v1 v2 (v3 w : val) :
+    vals_cas_compare_safe v1 v2 →
+    v1 ≠ v2 →
+    {{{ ▷ l ↦ v1 }}} cas_resolve_list #l v2 v3 w @ E1 {{{ RET #false; l ↦ v1 }}}.
+  Proof.
+    iIntros (Hvls Hprsκs Φ) "Hl HΦ".
+    rewrite /cas_resolve_list.
+    wp_lam. repeat wp_let.
+    iApply (abwp_cas_resolve_list_atomic_block_fail with "Hl"); eauto.
+  Qed.
+
+Lemma primitive_cas_spec (l : loc) (v2 v3 w : val) κs (prs : list (proph_id * option val)) :
+    val_is_unboxed v2 →
+    map fst prs = map fst κs →
+    <<< ∀ (v : val), l ↦ v ∗ obs_list κs w ∗ [∗ list] μ ∈ prs, proph μ.1 μ.2 >>>
+      cas_resolve_list #l v2 v3 w @ ⊤
+    <<< obs_list κs w ∗ if decide (v = v2) then
+                                l ↦ v3 ∗ ⌜map snd prs = map (Some ∘ snd) κs⌝
+                              else l ↦ v ∗ [∗ list] μ ∈ prs, proph μ.1 μ.2,
+        RET #(if decide (v = v2) then true else false) >>>.
+  Proof.
+    iIntros (? ? Φ) "AU". wp_lam. wp_let. wp_let. wp_let.
+    iMod "AU" as (v) "[(Hl & Hobs & Hprs) [_ Hclose]]".
+    destruct (decide (v = v2)) as [<-|Hv].
+    - iApply (abwp_cas_resolve_list_atomic_block_suc
+                with "[Hl Hobs Hprs] [Hclose]"); eauto.
+      + by unfold vals_cas_compare_safe; eauto.
+      + iNext; iFrame.
+    - iApply (abwp_cas_resolve_list_atomic_block_fail with "Hl"); eauto.
+      + by unfold vals_cas_compare_safe; eauto.
+      + iNext; iIntros "Hl". iApply "Hclose"; iFrame.
   Qed.
 
 End resolve_list.
