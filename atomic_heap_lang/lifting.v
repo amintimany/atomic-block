@@ -379,7 +379,7 @@ Lemma wp_atomic_block_fupd {s E Ψ Φ} (ab : expr) μs :
   WP AtomicBlock ab @ s; E {{ Φ }}.
 Proof.
   iIntros "HAB Hobs".
-  iApply (wp_atomic_block_fupd with "HAB"); simpl in *; first done.
+  iApply (wp_atomic_block_fupd with "HAB"); simpl in *.
   iNext.
   iIntros (v κ κs σ _) "[Hh HPr] HΨ".
   iMod ("Hobs" with "HΨ") as "(Hfst & Hprs & HΦ)".

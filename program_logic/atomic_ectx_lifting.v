@@ -171,41 +171,10 @@ Lemma wp_lift_pure_atomic_block_stuck E Φ e ab :
   (∀ σ, atomically_irreducible ab σ) →
   WP e @ E ?{{ Φ }}%I.
 Proof using Hinh.
-  iIntros (? Hstuck). iApply wp_lift_atomic_block_stuck; first done.
+  iIntros (? Hstuck). iApply wp_lift_atomic_block_stuck.
   iIntros (σ κs n) "_". iMod (fupd_intro_mask' E ∅) as "_"; first set_solver.
   by auto.
 Qed.
-
-Lemma wp_atomic_block_fupd {s E1 E2 Φ} e ab :
-  atomic_block_of e = Some ab →
-  (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) -∗ WP e @ s; E1 {{ v, Φ v }}.
-Proof.
-  iIntros (Hab) "H".
-  rewrite wp_eq /wp_def !(fixpoint_unfold (wp_pre _) _ _ _) /wp_pre /=.
-  rewrite !(atomic_block_not_val e ab) //.
-  iIntros (σ1 κ κs n) "Hsi".
-  iMod "H". iSpecialize ("H" with "Hsi").
-  iMod "H" as "[$ H]".
-  iModIntro.
-  iIntros (e2 σ2 efs Hpr).
-  iSpecialize ("H" with "[]"); first by eauto.
-  iMod "H". iModIntro. iNext.
-  iMod "H" as "[$ H]".
-  rewrite !(fixpoint_unfold (wp_pre _) _ _ _) /wp_pre /=.
-  edestruct (atomic_block_prim_step ab e) as [Hsa ->]; [by eauto|by eauto|].
-  edestruct (steps_atomically_always_to_val ab) as [v2 ->]; first by eauto.
-  rewrite big_opL_nil !right_id.
-  by iMod "H"; iMod "H".
-Qed.
-
-Global Instance elim_modal_fupd_wp_atomic_block p s E1 E2 e P Φ :
-  atomic_block_of e = Some ab →
-  ElimModal True p false (|={E1,E2}=> P) P
-    (WP e @ s; E1 {{ Φ }}) (WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }})%I.
-  Proof.
-    intros. by rewrite /ElimModal bi.intuitionistically_if_elim
-      fupd_frame_r bi.wand_elim_r wp_atomic_block_fupd; eauto.
-  Qed.
 
 Lemma wp_lift_atomic_block_fupd {s E1 E2 Φ} e1 ab :
   atomic_block_of e1 = Some ab →
@@ -244,6 +213,3 @@ Proof.
 Qed.
 
 End wp.
-
-(* Alternatively, and preferably this can be turned into a type class! *)
-Global Hint Extern 0 (atomic_block_of _ = Some _) => eassumption : typeclass_instances.

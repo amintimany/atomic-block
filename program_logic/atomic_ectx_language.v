@@ -278,10 +278,10 @@ Section ectx_language.
       rewrite fill_empty in Hatomic_fill; simplify_eq.
   Qed.
 
-  Lemma atomic_ectx_language_atomic_block_atomic a e ab :
-    (∀ σ, reducible e σ) → atomic_block_of e = Some ab → Atomic a e.
+  Global Instance atomic_ectx_language_atomic_block_atomic a e ab :
+    atomic_block_of e = Some ab → Atomic a e.
   Proof.
-    intros Hrd Hatomic_fill σ κ e' σ' efs
+    intros Hatomic_fill σ κ e' σ' efs
            [K e1' e2' ? ? ? Hstep|? ? ? ? ? ? _ Hsa]; simplify_eq.
     - eapply atomic_block_head_stuck' in Hstep.
       assert (K = empty_ectx); simplify_eq.
@@ -419,3 +419,7 @@ Definition AtomicLanguageOfEctx (Λ : atomicectxLanguage) : language :=
   let '@AtomicEctxLanguage E V C St K of_val to_val atomic_block_of empty comp fill head mix := Λ in
   @Language E V St K of_val to_val _
     (@ectx_lang_mixin (@AtomicEctxLanguage E V C St K of_val to_val atomic_block_of empty comp fill head mix)).
+
+(* Alternatively, and preferably this can be turned into a type class! *)
+Global Hint Extern 0 (atomic_block_of _ = Some _) => eassumption : typeclass_instances.
+Global Hint Extern 0 (atomic_block_of _ = Some _) => reflexivity : typeclass_instances.
