@@ -231,6 +231,8 @@
 \newcommand{\pprop}{\phi}
 \newcommand{\ppropB}{\psi}
 
+\newcommand{\FromCoq}[1]{\ulcorner #1 \urcorner}
+
 \newcommand{\pred}{\varPhi}
 \newcommand{\predB}{\Psi}
 \newcommand{\predC}{\Zeta}
@@ -260,6 +262,9 @@
 
 \NewDocumentCommand\wpre{O{} m O{} m}%
   {\textlog{wp}^{#1}_{#3}\spac#2\spac{\left\{#4\right\}}}
+
+\NewDocumentCommand\abwpre{O{} m O{} m}%
+  {\textlog{abwp}^{#1}_{#3}\spac#2\spac{\left\{#4\right\}}}
 
 \newcommand{\stateinterp}{S}
 
@@ -306,6 +311,7 @@
 
 % for now, the update modality looks like a pvs without masks.
 \NewDocumentCommand \upd {} {\mathop{\dispdot[-0.2ex]{\mid\kern-0.4ex\Rrightarrow\kern-0.25ex}}}
+\NewDocumentCommand \updW {} {\!\!\!\mathop{\dot{\raisebox{0pt}[\dimexpr\height][\depth-2ex]{\;\;$\vsW$}}}}
 
 \NewDocumentCommand\Acc{O{} O{} m m}{\langle #3 \vsE #4  \rangle_{#1}^{#2}}
 

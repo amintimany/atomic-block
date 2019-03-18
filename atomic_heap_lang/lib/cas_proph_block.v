@@ -54,7 +54,7 @@ Section resolve_list.
       by iApply "HΦ"; iExists _, _; iFrame.
   Qed.
 
-  Lemma abwp_cas_resolve_list_atomic_block_suc E1 l v1 (v3 : val) κs w prs :
+  Lemma wp_cas_resolve_list_atomic_block_suc E1 l v1 (v3 : val) κs w prs :
     vals_cas_compare_safe v1 v1 →
     map fst prs = map fst κs →
     {{{ ▷ (obs_list κs w ∗ l ↦ v1 ∗ [∗ list] μ ∈ prs, proph μ.1 μ.2) }}}
@@ -81,7 +81,7 @@ Section resolve_list.
       by iApply "HΦ"; iFrame.
   Qed.
 
-  Lemma abwp_cas_resolve_list_atomic_block_fail E1 l v1 v2 (v3 w : val) :
+  Lemma wp_cas_resolve_list_atomic_block_fail E1 l v1 v2 (v3 w : val) :
     vals_cas_compare_safe v1 v2 →
     v1 ≠ v2 →
     {{{ ▷ l ↦ v1 }}}
@@ -105,7 +105,7 @@ Section resolve_list.
       by iApply "HΦ"; iFrame.
   Qed.
 
-  Lemma abwp_cas_resolve_list_suc E1 l v1 (v3 : val) κs w prs :
+  Lemma wp_cas_resolve_list_suc E1 l v1 (v3 : val) κs w prs :
     vals_cas_compare_safe v1 v1 →
     map fst prs = map fst κs →
     {{{ ▷ (obs_list κs w ∗ l ↦ v1 ∗ [∗ list] μ ∈ prs, proph μ.1 μ.2) }}}
@@ -115,10 +115,10 @@ Section resolve_list.
     iIntros (Hvls Hprsκs Φ) "HP HΦ".
     rewrite /cas_resolve_list.
     wp_lam. repeat wp_let.
-    iApply (abwp_cas_resolve_list_atomic_block_suc with "HP"); eauto.
+    iApply (wp_cas_resolve_list_atomic_block_suc with "HP"); eauto.
   Qed.
 
-  Lemma abwp_cas_resolve_list_fail E1 l v1 v2 (v3 w : val) :
+  Lemma wp_cas_resolve_list_fail E1 l v1 v2 (v3 w : val) :
     vals_cas_compare_safe v1 v2 →
     v1 ≠ v2 →
     {{{ ▷ l ↦ v1 }}} cas_resolve_list #l v2 v3 w @ E1 {{{ RET #false; l ↦ v1 }}}.
@@ -126,7 +126,7 @@ Section resolve_list.
     iIntros (Hvls Hprsκs Φ) "Hl HΦ".
     rewrite /cas_resolve_list.
     wp_lam. repeat wp_let.
-    iApply (abwp_cas_resolve_list_atomic_block_fail with "Hl"); eauto.
+    iApply (wp_cas_resolve_list_atomic_block_fail with "Hl"); eauto.
   Qed.
 
 Lemma primitive_cas_spec (l : loc) (v2 v3 w : val) κs (prs : list (proph_id * option val)) :
@@ -142,11 +142,11 @@ Lemma primitive_cas_spec (l : loc) (v2 v3 w : val) κs (prs : list (proph_id * o
     iIntros (? ? Φ) "AU". wp_lam. wp_let. wp_let. wp_let.
     iMod "AU" as (v) "[(Hl & Hobs & Hprs) [_ Hclose]]".
     destruct (decide (v = v2)) as [<-|Hv].
-    - iApply (abwp_cas_resolve_list_atomic_block_suc
+    - iApply (wp_cas_resolve_list_atomic_block_suc
                 with "[Hl Hobs Hprs] [Hclose]"); eauto.
       + by unfold vals_cas_compare_safe; eauto.
       + iNext; iFrame.
-    - iApply (abwp_cas_resolve_list_atomic_block_fail with "Hl"); eauto.
+    - iApply (wp_cas_resolve_list_atomic_block_fail with "Hl"); eauto.
       + by unfold vals_cas_compare_safe; eauto.
       + iNext; iIntros "Hl". iApply "Hclose"; iFrame.
   Qed.

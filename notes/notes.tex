@@ -4,10 +4,11 @@
 \usepackage{includes}
 \usepackage{iris}
 \usepackage{hyperref}
+\usepackage{natbib}
 
 \title{\bfseries Atomic Blocks in \Iris{} for Prophecies}
 \author{Amin Timany\\ {imec-DistriNet, KU Leuven}}
-\date{March 15, 2019}
+\date{March 18, 2019}
 
 \allowdisplaybreaks
 
@@ -26,7 +27,29 @@
   atomic.
 \end{abstract}
 
-\section{Languages in \Iris{}}
+\begin{remark*}
+  The ideas about the use and encoding of prophecies presented here
+  are due to Bart Jacobs (KU Leuven). The presentation of prophecies
+  presented are taken from their implementation by Marianna Rapoport
+  (University of Waterloo), Ralf Jung (MPI-SWS) and Derek Dreyer
+  (MPI-SWS). This encoding is inspired by the encoding of Bart Jacobs
+  and can be found in \citet{KULeuven-2-2363661}. Notice that in
+  \loccit resolving prophecy variables is referred to as assigning
+  prophecy variables.
+
+  Furthermore, the way languages are set up and the weakest
+  precondition is defined in this text is taken from \Iris{}
+  \cite{iris, iris2, iris3, irisjfp} development. I will make it clear
+  what my contributions to these constructions are in the text.
+
+  I assume that the reader is familiar with \Iris{} and its program
+  logic at least at an intuitive level. i won't explain things line
+  invariants, the later modality \etc I will use these concepts with
+  little explanation. I will however make sure that I explain the
+  notation used in the text.
+\end{remark*}
+
+\section{Languages with Atomic Blocks in \Iris{}}\label{sec:the-lang}
 In \Iris{} we define a programming language by defining its syntax and
 its small-step operational semantics. More precisely, we have to
 define the set of expressions, the set of values, evaluation contexts
@@ -204,10 +227,364 @@ are not part of standard \Iris{} as of this writing.\footnote{These
   slightly more involved axioms make fewer assumptions about the
   structure of the evaluation contexts.}
 
-\section{The Program Logic of \Iris{}: Weakest Preconditions}
+\section{The Program Logic of \Iris{}: Weakest Preconditions and Prophecies}
+The idea here is to have a weakest precondition proposition
+$\wpre{\expr}{\pred}$ that would imply the following: $\expr$ is safe
+to run (it won't crash), and, whenever $\expr$ reduces to a value,
+that value satisfies $\pred$. That is, we want to prove the following:
+\[
+(\proves \wpre{\expr}{\var.\; \FromCoq{\pprop(\var)}}) \provesCoq \SAFE{\pprop}(\expr)
+\]
+Here, $\pprop$ is a \Coq{} (meta logic) proposition injected in
+\Iris{}; $\FromCoq{\cdot} : \Prop \to \iProp$ injects \Coq{}
+propositions into \Iris{} propositions. The statement above says that
+if $\wpre{\expr}{\pprop}$ is derivable in \Iris{}, then in \Coq{} we
+have $\SAFE{\pprop}(\expr)$.
+\begin{align*}
+  \SAFE{\pprop}(\expr) \eqdef{}
+  & \forall \state', \observation, \vec{\expr'}.\;
+    \text{if }~ ((\emptyset, \emptyset), \expr)
+    \overset{\observation}{\tpstep}^* (\state', \vec{\expr'}) ~\text{
+    then for any $\expr_i'$ we have that}\\
+  & \text{either }~ \expr_i' \in \Val
+    ~(\text{and if $i = 0$ then }~ \pprop(\expr_i')) ~\text{ or }~ \exists \state'', \observation'', \expr'', \vec{\expr}_f.\;
+    (\state', \expr_i') \overset{\observation'' \mid \vec{\expr}_f}{\step} (\state'', \expr'')
+\end{align*}
+In other words, in any configuration $(\state', \vec{\expr'})$
+reachable from the starting configuration
+$((\emptyset, \emptyset), \expr)$, any thread $\expr_i'$ is not stuck,
+\ie, it is either a value or can take a step.
+
+\paragraph{Weakest preconditions and prophecies \emph{intuitively}}
+The definition of weakest precondition in \Iris{} closely reflects the
+concept of safety above. Intuitively, $\wpre{\expr}{\pred}$ says that
+either $\expr$ is a value that satisfies $\pred$, or otherwise it is
+reducible and any expression that it \emph{nondeterministically}
+reduces to should satisfy weakest precondition with respect to
+$\pred$. Note how \emph{nondeterminism} in the execution of programs
+is treated in the intuitive explanation of weakest preconditions
+above: we consider all different nondeterministic behaviors of a
+program and prove that in any case the program is safe. This is indeed
+expected based on the intuitive concept of safety and the definition
+$\SAFE{\pprop}$ above. However, in some cases, we want to only
+consider some of the nondeterministic behaviors of the program at a
+time. For instance, given a program that generates a random Boolean
+value we might want to consider the program under two different
+situations: one in which the random generation produces $\True$ and
+one where it produces $\False$. Obviously, if the program is safe in
+both cases then the program should be safe in general. However, when
+we concentrate on the situation when random generation produces a
+certain value we can given more precise specifications for the
+program. The idea of prophecy variables and observations introduced in
+our \TheLang{} in Section~\ref{sec:the-lang} is to support this form
+of concentration of certain behaviors of programs. To achieve this, in
+the definition of weakest preconditions we only consider
+nondeterministic behaviors that make observations that are compatible
+with our \emph{prediction} of what observations will be observed when
+running the program. Now in order to prove that weakest preconditions
+imply safety we have to show that any thread in any configuration
+$(\state', \vec{\expr'})$ for which we have
+$((\emptyset, \emptyset), \expr) \overset{\observation}{\tpstep}^*
+(\state', \vec{\expr'})$ for some $\observation$ is not stuck. This
+would be the case if the weakest precondition that we have proven
+predicts observations that are compatible $\observation$. As we will
+see in the definition of weakest preconditions below, for a weakest
+precondition to hold, it should hold for any prediction. Hence, we can
+simply take our prediction to be exactly $\observation$.
+
+\paragraph{Weakest preconditions and prophecies \emph{concretely}}
+The definition of weakest precondition propositions is given
+below. Here, $\mu r.\; \prop$ is the \emph{unique, guarded fixpoint}
+of $\prop$ with respect to $r$. By guarded we mean that in $\prop$,
+every occurrence of $r$ appears under (is guarded by) a $\later$
+modality; see \citet{irisjfp} for further details of guarded
+fixpoints. Here the mask $\mask$ keeps track of invariants. We will
+briefly explain this below; see \citet{irisjfp} for further details.
+The predicate $\StateInterp$ keeps track of the state of the program
+using \Iris{} resources. It also keeps track of the prediction under
+consideration.
+\begin{align*}
+  \wpre{\expr}[\mask]{\pred} \eqdef{}
+  & (\mu r.\mathit{WPBody})(\expr, \mask, \pred)\\
+  \mathit{WPBody}(\expr, \mask, \pred) \eqdef{}
+  & \text{either }~\expr \in \Val \land \pvs[\mask] \pred(\expr) ~\text{ or }\\
+  & \forall \state, \observation, \observation'.\;
+    \begin{aligned}[t]
+      & \StateInterp(\state, \observation \app \observation') \vsW[\mask, \emptyset]
+      \FromCoq{\mathit{red}(\state, \expr)} \ast{}\\
+      & \later \forall \state', \expr'.\;
+      \FromCoq{(\state, \expr) \overset{\observation \mid \vec{\expr}_f}{\step} (\state', \expr')}
+      \vsW[\emptyset, \mask]
+      \begin{aligned}[t]
+        & \StateInterp(\state', \observation') \ast r(\expr', \mask, \pred) \ast{}\\
+        & \Sep_{\expr'' \in \vec{\expr}_f} r(\expr'', \mask, \pred)
+      \end{aligned}
+    \end{aligned}
+\end{align*}
+Here $\pvs[\mask][\mask']$ is the \emph{fancy} update modality and
+$\pvs{\mask}$ is a shorthand for $\pvs[\mask][\mask]$. The masks
+$\mask$ and $\mask'$ in $\pvs[\mask][\mask']$ are respectively
+invariants that we can open during the update and those that we need
+to have closed after the update. The proposition
+$\prop \vsW[\mask][\mask'] \propB$ is a shorthand for
+$\prop \wand \vs[\mask][\mask'] \propB$. Notice that the definition
+above says that invariants can be only kept open during evaluation of
+single steps computation. In other words, we can open invariants (the
+second mask is $\emptyset$ indicating that no invariant needs to be
+closed after the update modality) to prove that the expression is
+reducible. Furthermore, after a single step of computation the
+invariants in $\mask$ must be closed (as the $\mask$ in
+$\vsW[\emptyset, \mask]$ indicates). We write $\wpre{\expr}{\pred}$
+whenever the mask of the weakest precondition is $\top$,
+$\wpre{\expr}[\top]{\pred}$, \ie, all invariants are available.
+
+\paragraph{Prophecy resolution}
+Notice how the definition of weakest preconditions above follows very
+closely the intuitive explanation above. In particular, in the
+definition above if the program at hand is not a value, we need to
+prove that given \emph{any prediction} (note the universal
+quantification over $\observation$ and $\observation'$), we have to
+show that weakest precondition holds for any expression that the
+program reduces to, as long as that step of computation makes the
+expected observation $\observation$.
+
+We will not get into the exact definition of $\StateInterp$. Suffice
+it to say that $\StateInterp(\state, \observation)$ states, among
+other things, \eg, modeling the heap using \Iris{} resources, that
+there is a set $\Resolutions(\state, \observation)$ of resolutions
+(pair of prophecy id and value). Any prophecy id that is resolved in
+$\Resolutions(\state, \observation)$ is in the set of prophecy
+identifiers in $\state$. Moreover, for any
+$(\ploc, \val) \in \Resolutions(\state, \observation)$ we have that
+the first occurrence $\ploc$ in $\observation$ observes $\ploc$ to
+have a value $\val$.\footnote{Technically,
+  $\Resolutions(\state, \observation)$ is a set of pairs where the
+  first component is a prophecy identifier and the second component is
+  $\mathit{option}(\Val)$. This is because we don't have to pick a
+  value in case the prophecy identifier never resolved. } That is,
+$\observation = \observation_1 \app (\ploc, \val); \observation_2$
+where $\ploc$ does not appear in $\observation_1$. We use \Iris{}
+resources to keep track of and reason modularly about the set
+$\Resolutions(\state, \observation)$ of resolved prophecy
+identifiers. In particular, we introduce an \Iris{} proposition
+$\ownproph(\ploc, \val)$ defined in terms of \Iris{} resources with
+the property that:
+\[
+  \ownproph(\ploc, \val) \ast \StateInterp(\state, \observation)
+  \proves \FromCoq{(\ploc, \val) \in \Resolutions(\state,
+    \observation)}
+\]
+This allows us to derive the following inference rules for prophecy
+creation and resolution:
+\begin{mathparpagebreakable}
+\inferH{WP-Create-Proph}{}{\wpre{\createproph}
+  {\var.\; \exists \ploc, \val.\; \FromCoq{\var = \ploc} \land \ownproph(\ploc, \val)}}
+\and
+\inferH{WP-Resolve-Proph}{\ownproph(\ploc, \val)}{\wpre{\resolveproph(\ploc, \valB)}
+  {\var.\; \FromCoq{\var = \TT} \land \FromCoq{\val = \valB}}}
+\end{mathparpagebreakable}
+
+\paragraph{The need for atomic blocks}
+The definition of weakest preconditions above only allows invariants
+to remain open during atomic steps of computation. In particular, this
+allows us to derive the following proof rule for the \Iris{} program
+logic which allows us to open any invariants (that is available to us)
+during atomic steps of computation:
+\begin{mathparpagebreakable}
+\inferH{WP-Atomic}{\pvs[\mask_1][\mask_2] \wpre{\expr}[\mask_2]{\var.\; \pvs[\mask_2][\mask_1] \pred(\var)}
+  \and \expr \text{ is physically atomic}}{\wpre{\expr}[\mask_1]{\pred}}
+\end{mathparpagebreakable}
+Notice that in \TheLang{}, the expression $\AtomicBlock{\expr}$ is
+always physically atomic, \ie, it reduces to a value in at most a
+single step of computation. This is means that we can keep invariants
+open for the whole duration of the computation of the body of an
+atomic block. Particularly, we can perform some operation and based on
+the result of the expression resolve certain prophecy variables. An
+example of this is presented in Section~\ref{sec:ex-cas-proph}.
 
 \section{Atomic-Block Weakest Preconditions}
+We introduce special atomic block weakest precondition (ABWP) for
+reasoning about (the body of) atomic blocks such that whenever ABWP
+holds for the body of an atomic block then weakest precondition of the
+whole atomic block holds. This is precisely what the inference rules
+\ruleref{Basic-WP-Atomic-Block} and \ruleref{WP-Atomic-Block}
+below formalize. Notice that in order to show weakest precondition for
+a program we need to prove the program (if it is not a value) is
+reducible. That is, in this case, we need to show that the body of the
+atomic block does reduce (in zero or more steps) to a value. In other
+words, we need to know that having that the ABWP holds for $\expr$
+implies that $\expr$ reduces to a value.
+\begin{mathparpagebreakable}
+  \inferH{ABWP-reducible}{}{\StateInterp(\state, \observation) \ast \abwpre{\expr}{\pred} \updW
+  \FromCoq{\exists \state', \val, \observation'.\; (\state, \expr) \overset{\observation'}{\Astep} (\state',\val)}}
+\end{mathparpagebreakable}
+Here $\prop \updW \propB$ is a shorthand for $\prop \wand \upd \propB$
+and $\upd$ is the basic update modality. In contrast with the fancy
+update modality basic update modality does not give access to
+invariants. In fact, in \Iris{} fancy update modality is constructed
+from basic update modality, hence the names. We will discuss below why
+we use the basic update modality instead of the fancy update modality.
 
-\section{Example: Prophecy Resolution Atomically with $\CAS$}
+On the other hand, implying that the program reduces (in zero or more
+steps) to a value is in conflict with prophecies and observations
+cutting down the tree. This is due to the fact that if we restrict our
+attention to certain nondeterministic behaviors, it not be the case
+that the program does necessarily reduces to a value. Moreover, the
+operational semantics of the programming language and the definition
+of weakest preconditions given above indicate that prophecies either
+consider the whole atomic block's execution or none of it. For these
+reasons, ABWP's must not cut execution of programs as indicated by
+prophecies and observations. Therefore, we define ABWP's for
+postcondition predicates that take an observation in addition to the
+usual value of the computation. ABWP's are defined below.
+$\lfix r.\; \prop$ is the least fixpoint of $\prop$ with respect to
+$r$ given that $\prop$ is monotone with respect to $r$.
+\begin{align*}
+  \abwpre{\expr}[\observation]{\pred} \eqdef{}
+  & (\lfix r.\mathit{ABWPBody})(\expr, \observation, \pred)\\
+  \mathit{ABWPBody}(\expr, \observation, \pred) \eqdef{}
+  & \text{either }~\expr \in \Val \land \upd \pred(\expr, \observation) ~\text{ or }\\
+  & \forall \state, \observation'.\;
+    \begin{aligned}[t]
+      & \StateInterp(\state, \observation') \updW
+      \FromCoq{\mathit{red}(\state, \expr)} \ast{}\\
+      & \forall \state', \observation'', \expr'.\;
+      \FromCoq{(\state, \expr) \overset{\observation' \mid \vec{\expr}_f}{\step} (\state', \expr')}
+      \updW
+      \begin{aligned}[t]
+        & \FromCoq{\vec{\expr}_f = \empfrk} \ast{} \StateInterp(\state', \observation') \ast{}\\
+        & r(\expr', \observation \app \observation', \pred)
+      \end{aligned}
+    \end{aligned}
+\end{align*}
+Notice how this definition enforces that whenever ABWP holds there are
+no threads forked by the program. Moreover, notice $\observation$ in
+$\wpre{\expr}[\observation]{\pred}$ is collecting all the observations
+made during the execution of the program. This fact can also be seen
+in the bind rule for ABWP's:
+\begin{mathparpagebreakable}
+\inferH{ABWP-Bind}{\abwpre{\expr}[\observation]{\var, \observation'.\; \abwpre{\lctx[\expr]}[\observation']{\pred}}}{\abwpre{\lctx[\expr]}[\observation]{\pred}}
+\end{mathparpagebreakable}
+We write $\abwpre{\expr}{\pred}$ for $\abwpre{\expr}[\empobs]{\pred}$.
+
+The definition of $\abwpre{\expr}[\observation]{\pred}$ above allows
+to derive the following fundamental rule for programming languages
+featuring atomic blocks:
+\begin{mathparpagebreakable}
+\inferH{Basic-WP-Atomic-Block}
+{\later \abwpre{\expr}{\pred} \and \later \forall \state, \val, \observation, \observation'.\; \pred(\val, \observation) \ast \StateInterp(\state, \observation \app \observation') \vsW[\mask] \predB(\val) \ast \StateInterp(\state, \observation')}
+{\wpre{\AtomicBlock{\expr}}[\mask]{\predB}}
+\end{mathparpagebreakable}
+The rule above is proven in general for any programming language with
+atomic blocks and prophecies (generic in the form of observations). In
+the case of \TheLang{} this rule allows us to prove the following rule:
+\begin{mathparpagebreakable}
+\inferH{WP-Atomic-Block}
+{\later \abwpre{\expr}{\pred} \and
+  \later \Sep_{(\ploc, \val) \in \observation'} \ownproph(\ploc, \val) \and\\\
+  \later \forall \val, \observation.\; \pred(\val, \observation) \vsW[\mask]
+  \FromCoq{\prophids(\observation) = \prophids(\observation')} \ast
+    \left((\forall \ploc.\; \FromCoq{\observation(\ploc) = \observation'(\ploc)}) \wand \predB(\val)\right)}
+{\wpre{\AtomicBlock{\expr}}[\mask]{\var.\; \predB(\val)}}
+\end{mathparpagebreakable}
+Where $\prophids(\observation)$ is the set of prophecy identifiers
+about which observations are made in $\observation$. We write
+$\observation(\ploc)$ for the value $\val$ if the first observation of
+$\ploc$ in $\observation$ is the value $\val$.
+
+Analogously to weakest preconditions we can derive ABWP inference
+rules for all basic operations of the language, \eg, for allocation of
+references, projections, \etc In particular, we can derive the
+following rules for creation and resolution of prophecies:
+\begin{mathparpagebreakable}
+\inferH{AWP-Create-Proph}{}{\abwpre{\createproph}
+  {\var.\; \exists \ploc, \val.\; \FromCoq{\var = \ploc} \land \ownproph(\ploc, \val)}}
+\and
+\inferH{ABWP-Resolve-Proph}{}{\abwpre{\resolveproph(\ploc, \valB)}[\observation]
+  {\var, \observation'.\; \FromCoq{\observation' = (\ploc, \valB); \observation}}}
+\end{mathparpagebreakable}
+
+\paragraph{Basic update modality versus fancy update modality}
+Using the rule \ruleref{ABWP-reducible} above, given
+$\later \abwpre{\expr}[\observation]{\pred}$ and
+$\later \StateInterp(\state, \observation')$ we can conclude
+$\later \upd{} \FromCoq{\exists \state', \val, \observation'.\;
+  (\state, \expr) \overset{\observation'}{\Astep}
+  (\state',\val)}$. However, for a plain proposition $\prop$ we have the following:
+\begin{mathparpagebreakable}
+  \inferH{later-basic-update}{}{\later \upd \prop \provesIff \later \upd \prop}
+\end{mathparpagebreakable}
+Here, $\provesIff$ is the logical equivalence. A plain proposition is
+one that don't depend on resources like pure propositions, \ie,
+propositions of the form $\FromCoq{\propB}$. Since, pure propositions
+are \emph{timeless} we can conclude
+$\FromCoq{\exists \state', \val, \observation'.\; (\state, \expr)
+  \overset{\observation'}{\Astep} (\state',\val)}$ from
+$\later \abwpre{\expr}[\observation]{\pred}$ and
+$\later \StateInterp(\state, \observation')$ when proving the
+correctness of the rule \ruleref{Basic-WP-Atomic-Block} above.
+
+The counterpart of inference rule \ruleref{later-basic-update} above
+does not hold for the fancy update modality. Hence, if we use the
+fancy update modality in the definition of ABWP's we would not be able
+to derive the rule \ruleref{Basic-WP-Atomic-Block} above. We would be
+able to prove a similar rule without $\later$ modalities in the
+antecedents. That however is not as useful.
+
+\section{Example: Prophecy Resolution Atomically with $\CAS$}\label{sec:ex-cas-proph}
+Here we only give the specs of the code of the program and the
+specs. The proof of specs holding is straightforward given the rules
+that we have mentioned throughout the text together with a few others,
+\eg, the bind rule, those pertaining to basic operations, \etc
+
+\begin{align*}
+  \mathit{ResolveList} \eqdef{}
+  & \Rec f \var = \MatchML \deref \var with None => \TT | Some \varB =>  \resolveproph(\Proj{1} (\Proj{1} \varB), \Proj{2} (\Proj{1} \varB)); f~(\Proj{2} \varB) end{} \\
+  \mathit{CASResolveList} \eqdef{}
+  & \lambda \var_1 , \lambda \var_2, \lambda \var_3, \lambda \varB,
+  \AtomicBlock{\If \CAS(\var_1, \var_2, \var_3) then ResolveList~\varB ; \True \Else \False}
+\end{align*}
+The program $\mathit{ResolveList}$ takes a linked-list of pairs of
+pairs of prophecy identifiers and values and resolves them all.  The
+program $\mathit{CASResolveList}$ takes three values for $\CAS$ as
+well as a linked-list of prophecies to be resolved. It uses an atomic
+block to atomically perform the $\CAS$ and in case it is successful
+resolve all prophecies in the given linked list. We define an \Iris{}
+predicate $obsList$ which states that a linked-list represents an
+observation. It is defined recursively as follows:
+\begin{align*}
+  obsList(\observation, \val) \eqdef{}
+  \begin{cases}
+    \exists \loc.\; \FromCoq{\val = \loc} \ast \loc \mapsto \mathit{None} & \text{if }~\observation = \empobs\\
+    \exists \loc, \valB.\; \FromCoq{\val = \loc} \ast \loc \mapsto
+    \mathit{Some}~((\ploc, \valC), \valB) \ast
+    \mathit{obsList}(\observation', \valB)& \text{if }~\observation =
+    (\ploc, \valC); \observation'
+  \end{cases}
+\end{align*}
+The specification of $\mathit{CASResolveList}$ pertaining respectively
+to the cases where $\CAS$ succeeds and fails are as follows:
+\begin{align*}
+  \hoareV
+  { \later obsList(\observation, w) \ast
+  \later l \mapsto \val_1 \ast
+  \later \Sep_{(\ploc, \valC) \in \observation'} \ownproph(\ploc, \valC) \ast
+  \FromCoq{\prophids(\observation) = \prophids(\observation')}}
+  {\mathit{CASResolveList}~\loc~\val_1~\val_3~\valB}
+  {\var.\; \FromCoq{\var = \True} \ast obsList(\observation, w) \ast l \mapsto \val_3 \ast
+  \FromCoq{\forall \ploc.\; \observation(\ploc) = \observation'(\ploc)}}
+\end{align*}
+\begin{align*}
+  \hoare
+  { \later l \mapsto \val_1 \ast \later \FromCoq{\val_1 \neq \val_2}}
+  {\mathit{CASResolveList}~\loc~\val_2~\val_3~\valB}
+  {\var.\; \FromCoq{\var = \False} \ast l \mapsto \val_1}
+\end{align*}
+
+\bibliographystyle{plainnat}
+\bibliography{ref.bib}
 
 \end{document}
+
+% LocalWords:  nondeterministically nondeterminism nondeterministic
+% LocalWords:  ABWP ABWP's postconditions postcondition

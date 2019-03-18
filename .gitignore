@@ -10,3 +10,6 @@ Makefile.coq.conf
 *.synctex.gz
 *.out
 *.pdf
+*.bbl
+*.blg
+*/auto

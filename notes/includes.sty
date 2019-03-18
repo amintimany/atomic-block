@@ -1,5 +1,5 @@
 \usepackage{listings,comment}
-\usepackage{amsfonts,amssymb,stmaryrd}
+\usepackage{amsfonts,amssymb,amsthm,stmaryrd}
 \PassOptionsToPackage{obeyspaces}{url}
 \usepackage{tikz,pgffor,mathtools}
 \usetikzlibrary{calc,fadings,decorations.pathreplacing,arrows,shapes,matrix,
@@ -7,6 +7,19 @@ chains,fit,matrix,decorations.pathmorphing}
 \usepackage[tikz]{mdframed}
 \usepackage{mathpartir,pftools}
 \usepackage{stackengine}
+
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+
+\theoremstyle{theorem}
+\newtheorem{theorem}[definition]{Theorem}
+\newtheorem{lemma}[definition]{Lemma}
+\newtheorem{corollary}[definition]{Corollary}
+
+\theoremstyle{remark}
+\newtheorem{remark}[definition]{Remark}
+\newtheorem*{remark*}{Remark}
 
 \usepackage{iris}
 % tweak the iris.sty file
@@ -196,6 +209,7 @@ mathescape=true
 \newcommand{\ie}{\textit{i.e.}}
 \newcommand{\Ie}{\textit{I.e.}}
 \newcommand{\etc}{\textit{etc.}}
+\newcommand{\loccit}{\textit{loc. cit.}}
 \newcommand{\defacto}{\textit{de facto}}
 \newcommand{\viceversa}{\textit{vice versa}}
 \newcommand{\VCC}{\Name{VCC}}
@@ -244,7 +258,7 @@ mathescape=true
 \newcommand{\TheLang}{\(\lambda^{\ATOMIC}% _{\mathit{conc}, \mathit{ref}}
   \)}
 
-\newcommand{\provesCoq}{\mathrel{\vdash_{\mbox{\!\includegraphics[width=0.7em]{rooster.jpg}}}}}
+\newcommand{\provesCoq}{\mathrel{\vdash_{\mbox{\!\includegraphics[width=0.6em]{Coq_logo.png}}}}}
 
 \newcommand{\len}{\mathrm{length}}
 
@@ -265,6 +279,9 @@ mathescape=true
 
 \newcommand{\createproph}{\langkw{CreateProph}}
 \newcommand{\resolveproph}{\langkw{Resolve}}
+\newcommand{\Resolutions}{\mathit{Resolutions}}
+\newcommand{\ownproph}{\mathit{Proph}}
+\newcommand{\prophids}{\mathit{PrIds}}
 \newcommand{\observation}{\kappa}
 \newcommand{\empobs}{\epsilon}
 \newcommand{\empfrk}{\epsilon}
@@ -369,7 +386,7 @@ mathescape=true
 % Safety -- contextual refinement -- context typing
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\newcommand{\SAFE}{\mathit{Safe}}
+\newcommand{\SAFE}[1]{\mathit{Safe}_{#1}}
 \newcommand{\lectx}{\le_{\mathit{ctx}}}
 \newcommand{\lelog}{\le_{\mathit{log}}}
 \newcommand{\eqctx}{\approx_{\mathit{ctx}}}
@@ -397,3 +414,11 @@ mathescape=true
 \newcommand{\fpfnsmall}{\rightharpoonup^{\textrm{fin}}}
 
 \newcommand{\namespSC}{\namesp.sc}
+
+\newcommand{\StateInterp}{\mathit{StateInterp}}
+
+% let Prop be the Prop universe in Coq.
+\renewcommand{\Prop}{{\color{red}\mathsf{Prop}}}
+
+%least fixpoint
+\newcommand{\lfix}{\mathcal{L}}
